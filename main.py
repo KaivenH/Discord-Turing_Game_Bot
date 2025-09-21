@@ -41,6 +41,7 @@ async def on_ready():
         from openai import OpenAI
         global oai_client
         oai_client = OpenAI(api_key=OPENAI_API_KEY)
+        # oai_client = OpenAI()
         print("successfully connected to OpenAI")
     except Exception as e:
         oai_client = None
@@ -51,6 +52,14 @@ async def on_member_join(member):
     await member.send(f"Welcome {member.name}")
 
 # Message Events
+
+def openai_answer(game: Game, text):
+    response = oai_client.responses.create(
+        model=OPENAI_MODEL,
+        instructions="You are a coding assistant that talks like a pirate.",
+        input=text,
+    )
+    return response.output_text
 
 @bot.event
 async def on_message(message: discord.Message):
@@ -119,9 +128,17 @@ async def handle_question(message: discord.Message, game: Game):
             await reply_channel.send("⏱️ Timeout: no human reply received. Proceeding with AI only.")
 
         # Generate AI answer (after human, per your step order)
-        async with message.channel.typing():
-            bot_answer = await openai_answer(game, question)
+        try:
+            async with message.channel.typing():
+                bot_answer = await openai_answer(game, question)
+                this_round.bot_answer = bot_answer
+        except Exception as e:
+            print(e)
+        except asyncio.TimeoutError:
+            print("Time ran out")
+            bot_answer = "Stuff"
             this_round.bot_answer = bot_answer
+                
 
         # Post both answers in consistent Person 1/2 order (identity fixed for whole game)
         # Map answers to labels:
@@ -130,19 +147,19 @@ async def handle_question(message: discord.Message, game: Game):
             (p2 if game.player_1_is_bot else p1): human_answer
         }
 
-        embed = discord.Embed(
+        embeder = discord.Embed(
             title=f"Round {round_number} Answers",
             description=f"**Question:** {question}",
             color=discord.Color.gold()
         )
-        embed.add_field(name=p1, value=answers_by_label[p1], inline=False)
-        embed.add_field(name=p2, value=answers_by_label[p2], inline=False)
+        embeder.add_field(name=p1, value=answers_by_label[p1], inline=False)
+        embeder.add_field(name=p2, value=answers_by_label[p2], inline=False)
         footer_note = f"Guess anytime with {COMMAND_PREFIX}guess 1 or {COMMAND_PREFIX}guess 2."
         if len(game.rounds) >= MAX_ROUNDS:
             footer_note += " (Max rounds reached.)"
-        embed.set_footer(text=footer_note)
+        embeder.set_footer(text=footer_note)
 
-        await game_channel.send(embed=embed)
+        await game_channel.send(embed=embeder)
 
         # If we hit max rounds, prompt to guess
         if len(game.rounds) >= MAX_ROUNDS:
@@ -332,7 +349,3 @@ if __name__ == "__main__":
     if not OPENAI_API_KEY:
         print("Warning: OPENAI_API_KEY not set; the AI will post a placeholder message.")
     bot.run(os.getenv("DISCORD_TOKEN"))
-
-
-
-
