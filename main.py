@@ -97,8 +97,8 @@ async def handle_question(message: discord.Message, game: Game):
         game_channel = message.guild.get_channel(game.game_channel_id)
         reply_channel = message.guild.get_channel(game.reply_channel_id)
         p1, p2 = game.label_players()
-        ai_label = p1 if game.player_1_is_bot else p2
-        human_label = p2 if game.player_1_is_bot else p1
+        # ai_label = p1 if game.player_1_is_bot else p2
+        # human_label = p2 if game.player_1_is_bot else p1
 
         # Prompt human in reply-channel
         prompt_msg = await reply_channel.send(embed=game.nice_embed(
@@ -130,10 +130,12 @@ async def handle_question(message: discord.Message, game: Game):
         # Generate AI answer (after human, per your step order)
         try:
             async with message.channel.typing():
-                bot_answer = await openai_answer(game, question)
+                bot_answer = openai_answer(game, question)
                 this_round.bot_answer = bot_answer
         except Exception as e:
             print(e)
+            bot_answer = "Stuff"
+            this_round.bot_answer = bot_answer
         except asyncio.TimeoutError:
             print("Time ran out")
             bot_answer = "Stuff"
@@ -146,7 +148,8 @@ async def handle_question(message: discord.Message, game: Game):
             (p1 if game.player_1_is_bot else p2): bot_answer,
             (p2 if game.player_1_is_bot else p1): human_answer
         }
-
+        print(p1)
+        print(p2)
         embeder = discord.Embed(
             title=f"Round {round_number} Answers",
             description=f"**Question:** {question}",
@@ -227,12 +230,11 @@ async def guess(ctx: commands.Context, player_choice: int):
 
 
     correct_number = 1 if game.player_1_is_bot else 2
-
+    current_game = None
     if player_choice not in (1, 2):
         return await ctx.reply("Please guess `1` or `2`.")
-
+    
     if player_choice == correct_number:
-        current_game = None
         return await ctx.reply("Correct!")
     else:
         return await ctx.reply("Incorrect!")
@@ -269,13 +271,7 @@ class Game:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def label_players(self) -> Tuple[str, str]:
-        if self.player_1_is_bot:
-            bot_label = "Player 1"
-            human_label = "Player 2"
-        else:
-            bot_label = "Player 2"
-            human_label = "Player 1"
-        return bot_label, human_label
+        return "Player 1", "Player 2"
 
 
     def build_message_history(self) -> List[dict]:
