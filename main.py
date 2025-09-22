@@ -148,8 +148,6 @@ async def handle_question(message: discord.Message, game: Game):
             (p1 if game.player_1_is_bot else p2): bot_answer,
             (p2 if game.player_1_is_bot else p1): human_answer
         }
-        print(p1)
-        print(p2)
         embeder = discord.Embed(
             title=f"Round {round_number} Answers",
             description=f"**Question:** {question}",
